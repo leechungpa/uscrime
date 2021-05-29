@@ -1,0 +1,118 @@
+---
+title: "Bayesian regression"
+author: "leechungpa"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    toc: yes
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: true
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = file.path(dirname(inputFile), './docs/model.html')) })
+---
+
+
+# Packages and Reference
+
+We use [BAS](https://cran.r-project.org/web/packages/BAS/BAS.pdf) packages. We proceeded with reference to [this example](https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html).
+
+Also, I give my sincere gratitude to [KKH](https://github.com/hun-learning94).
+
+
+
+```{r, warning=FALSE, message=FALSE}
+library(BAS)
+library(KernelKnn)
+library(tidyverse)
+```
+
+
+# Preprocessing
+
+```{r}
+data(ionosphere, package = "KernelKnn")
+DF = subset(ionosphere, select = -V2)
+str(DF)
+```
+
+
+```{r}
+data = read_csv("./trim_data.csv")
+data
+
+y_col = c('murdPerPop', 'rapesPerPop', 'robbbPerPop', 'assaultPerPop', 'burglPerPop', 'larcPerPop', 'autoTheftPerPop', 'arsonsPerPop')
+y_col
+```
+
+
+# Model fit
+
+```{r}
+fit.gprior = bas.lm(V1 ~ .,
+                     data = DF,
+                     method = "MCMC", # better than default "BAS"
+                                      # for large p
+                     prior = "ZS-null", # default
+                                        # "JZS" also can use
+                     modelprior = uniform(),
+                     include.always = ~1,
+                     MCMC.iterations = 10000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+fit.gprior
+```
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.5)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+
+```{r}
+plot(confint(coef.gprior, parm = survivors[1:4]))
+```
+
+
+# Prediction
+
+
+
+
+
+
+
+
+
