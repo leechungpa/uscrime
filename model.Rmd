@@ -26,41 +26,52 @@ Also, I give my sincere gratitude to [KKH](https://github.com/hun-learning94).
 
 ```{r, warning=FALSE, message=FALSE}
 library(BAS)
-library(KernelKnn)
 library(tidyverse)
+library(plotly)
 ```
 
 
 # Preprocessing
 
-```{r}
-data(ionosphere, package = "KernelKnn")
-DF = subset(ionosphere, select = -V2)
-str(DF)
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+original_data = read_csv("./data/df_final.csv")
 ```
 
 
 ```{r}
-data = read_csv("./trim_data.csv")
-data
+data = subset(original_data, select = -c(X1, idx, nan_mur, nan_rape, nan_rob, nan_ass,
+                                         nan_burg, nan_larc, nan_auto, nan_arsons,
+                                         nan_some, communityname, fake_state, Address,
+                                         Latitude, Longitude, `Address found`)) %>%
+  mutate(value = 1)  %>% spread(state, value,  fill = 0 ) 
 
-y_col = c('murdPerPop', 'rapesPerPop', 'robbbPerPop', 'assaultPerPop', 'burglPerPop', 'larcPerPop', 'autoTheftPerPop', 'arsonsPerPop')
-y_col
+data %>% head()
 ```
 
 
-# Model fit
+
+# murdPerPop
 
 ```{r}
-fit.gprior = bas.lm(V1 ~ .,
-                     data = DF,
-                     method = "MCMC", # better than default "BAS"
-                                      # for large p
-                     prior = "ZS-null", # default
-                                        # "JZS" also can use
-                     modelprior = uniform(),
-                     include.always = ~1,
-                     MCMC.iterations = 10000)
+y_name = 'murdPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
 ```
 
 ```{r}
@@ -69,10 +80,6 @@ plot(fit.gprior, ask = F)
 
 ## model result
 
-
-```{r}
-fit.gprior
-```
 
 ```{r}
 summary(fit.gprior)
@@ -95,21 +102,848 @@ coef.gprior = coef(fit.gprior)
 coef.gprior
 ```
 
+### individual plot
+
+probne0 > 0.2
+
 ```{r}
-survivors = which(coef.gprior$probne0 > 0.5)
+survivors = which(coef.gprior$probne0 > 0.2)
 plot(coef.gprior, subset = survivors, ask = F)
 ```
 
+### coefficient plot
 
 ```{r}
-plot(confint(coef.gprior, parm = survivors[1:4]))
+plot(confint(coef.gprior, parm = survivors))
 ```
 
 
-# Prediction
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]]))-1
+b = round(max(result_data[[y_name]]))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
 
 
 
+
+
+
+
+
+
+
+
+# rapesPerPop
+
+```{r}
+y_name = 'rapesPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# robbbPerPop
+
+```{r}
+y_name = 'robbbPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# assaultPerPop
+
+```{r}
+y_name = 'assaultPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
+
+
+
+
+
+
+
+
+
+
+# burglPerPop
+
+```{r}
+y_name = 'burglPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# larcPerPop
+
+```{r}
+y_name = 'larcPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
+
+
+
+
+
+
+
+# autoTheftPerPop
+
+```{r}
+y_name = 'autoTheftPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
+
+
+
+
+
+
+
+
+# arsonsPerPop
+
+```{r}
+y_name = 'arsonsPerPop'
+```
+
+
+## Model fit
+
+```{r}
+f = paste(y_name, " ~ . -murdPerPop -rapesPerPop -robbbPerPop -assaultPerPop -burglPerPop -larcPerPop -autoTheftPerPop -arsonsPerPop")
+
+fit.gprior = bas.lm(f,
+                    data = data,
+                    method = "MCMC", # better than default "BAS"
+                                     # for large p
+                   prior = "ZS-null", # default
+                                      # "JZS" also can use
+                   modelprior = uniform(),
+                   include.always = ~1,
+                   MCMC.iterations = 100000)
+```
+
+```{r}
+plot(fit.gprior, ask = F)
+```
+
+## model result
+
+
+```{r}
+summary(fit.gprior)
+```
+
+top 5 model
+
+## Visualization of the Model Space
+
+```{r}
+image(fit.gprior, rotate=F)
+```
+
+
+
+## Posterior Distributions of Coefficients
+
+```{r}
+coef.gprior = coef(fit.gprior)
+coef.gprior
+```
+
+### individual plot
+
+probne0 > 0.2
+
+```{r}
+survivors = which(coef.gprior$probne0 > 0.2)
+plot(coef.gprior, subset = survivors, ask = F)
+```
+
+### coefficient plot
+
+```{r}
+plot(confint(coef.gprior, parm = survivors))
+```
+
+
+## Prediction
+
+
+```{r}
+muhat.bma <- fitted(fit.gprior, estimator = "BMA")
+bma <- predict(fit.gprior, estimator = "BMA", newdata = data)
+
+result_data = original_data %>%
+  mutate(pred_y=bma$fit)
+```
+
+
+```{r, echo=FALSE}
+result_data %>%
+  write_csv(paste('./data/pred_', y_name, '.csv', sep=''))
+```
+
+
+```{r, echo=FALSE}
+a = round(min(result_data[[y_name]],na.rm = TRUE))-1
+b = round(max(result_data[[y_name]],na.rm = TRUE))+1
+
+
+x <- list(title = 'original', titlefont = f)
+y <- list(title = 'predict', titlefont = f)
+
+fig <- plot_ly(
+  type = "scatter",
+  x = result_data[[y_name]], 
+  y = result_data[['pred_y']], 
+  mode = "markers",  opacity=0.9,
+  showlegend = FALSE) %>% 
+  add_lines(x = a:b, y = a:b) %>%
+  layout(xaxis = x, yaxis = y, title=y_name)
+fig
+```
 
 
 
