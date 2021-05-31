@@ -562,11 +562,6 @@ coef.gprior
 ```
 
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-temp_11 = coef.gprior$namesx
-temp_12 = coef.gprior$postmean
-```
-
 ### individual plot
 
 probne0 > 0.2
@@ -683,11 +678,6 @@ coef.gprior
 ```
 
 
-
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-tibble(index=temp_11, burglPerPop=temp_12, larcPerPop=coef.gprior$postmean) %>%
-  write_csv('./data/coef.csv')
-```
 
 
 
