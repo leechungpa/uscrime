@@ -35,16 +35,15 @@ library(plotly)
 
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-original_data = read_csv("./data/df_final.csv")
+original_data = read_csv("./data/df_R.csv")
+
+set.seed(2020)
 ```
 
 
 ```{r}
-data = subset(original_data, select = -c(X1, idx, nan_mur, nan_rape, nan_rob, nan_ass,
-                                         nan_burg, nan_larc, nan_auto, nan_arsons,
-                                         nan_some, communityname, fake_state, Address,
-                                         Latitude, Longitude, `Address found`)) %>%
-  mutate(value = 1)  %>% spread(state, value,  fill = 0 ) 
+colnames(original_data)
+data = subset(original_data, select = -c(X1, idx)) 
 
 data %>% head()
 ```
@@ -506,6 +505,9 @@ fig
 
 
 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+set.seed(2020)
+```
 
 # burglPerPop
 
@@ -555,7 +557,14 @@ image(fit.gprior, rotate=F)
 
 ```{r}
 coef.gprior = coef(fit.gprior)
+
 coef.gprior
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+temp_11 = coef.gprior$namesx
+temp_12 = coef.gprior$postmean
 ```
 
 ### individual plot
@@ -672,6 +681,15 @@ image(fit.gprior, rotate=F)
 coef.gprior = coef(fit.gprior)
 coef.gprior
 ```
+
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+tibble(index=temp_11, burglPerPop=temp_12, larcPerPop=coef.gprior$postmean) %>%
+  write_csv('./data/coef.csv')
+```
+
+
 
 ### individual plot
 
